@@ -1,0 +1,1013 @@
+---
+title: "Stephen Curry Analysis"
+author: "Aiden Ramgoolam"
+date: "2023-06-22"
+output:
+  pdf_document:
+    keep_tex: yes
+    latex_engine: xelatex
+    number_sections: no
+  word_document: default
+  html_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r, include = FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=70),tidy=TRUE)
+```
+
+
+```{r, include = TRUE}
+filename <- "CurryGameData.csv"
+games <- read.csv(file.path(getwd(), filename), header = TRUE)
+```
+
+**Bootstrap**
+**a)`create.attr3` takes in a population `pop` and outputs a function which takes in sample indices and outputs the sample estimates for  `pts` per game, `ptsAst_min` and `defplay_min`. W will apply the population or season `games` to `create.attr3` to create function `attr3` and then apply games 1 to 80 to the function.**
+
+```{r}
+# Function to calculate sample estimates for pts per game, ptsAst_min, and defplay_min
+create.attr3 <- function(pop) {
+  function(sample_indices) {
+    #print(sample_indices)
+    sample_data <- pop[sample_indices, ]
+    
+    # Sample estimate for pts per game
+    pts_per_game <- mean(sample_data$pts)
+    
+    # Sample estimate for ptsAst_min
+    sample_data$ptsAst_min <- ((sample_data$ast + sample_data$pts) 
+                               / sample_data$min)
+    ptsAst_min <- mean(sample_data$ptsAst_min)
+    
+    # Sample estimate for defplay_min
+    sample_data$defplay_min <- ((sample_data$dreb + sample_data$blk + sample_data$stl)
+                                / sample_data$min)
+    defplay_min <- mean(sample_data$defplay_min)
+    
+    
+    return(c(pts_per_game, ptsAst_min, defplay_min))
+  }
+}
+
+# pop games 1 to 80 
+gamePop <- 1:80
+
+# Applying create.attr3 to create the function attr3 using the entire "games" dataset as the population
+attr3 <- create.attr3(games)
+
+# Applying gamepop (games 1 to 80) to the function attr3 to get pop estimates
+pop_estimates <- attr3(gamePop)
+
+# Sample estimates for pts per game, ptsAst_min, and defplay_min for games 1 to 80
+pts_per_game_estimate <- pop_estimates[1]
+ptsAst_min_estimate <- pop_estimates[2]
+defplay_min_estimate <- pop_estimates[3]
+
+
+cat("points per game estimate:", pts_per_game_estimate)
+cat("points and assists per min: ", ptsAst_min_estimate)
+cat("defensive plays per minutes: ", defplay_min_estimate)
+```
+
+$\;$
+
+$\;$
+
+**b)Sampling Distribution of the attributes  - Select $M=1000$ samples of size $n=40$ without replacement. i.e. construct  $S_1,S_2,\ldots,S_{1000}$. - For each sample apply the `attr3` function. Then construct three histograms (in a single row) of the sample error for each attribute.**
+
+```{r}
+# Set the seed for reproducibility
+set.seed(341)
+
+# Number of samples to draw (M) and sample size (n)
+M <- 1000
+n <- 40
+
+#  Initialize empty matrices to store sample estimates
+bootstrap_estimates_pts_per_game <- matrix(0, nrow = M, ncol = 1)
+bootstrap_estimates_ptsAst_min <- matrix(0, nrow = M, ncol = 1)
+bootstrap_estimates_defplay_min <- matrix(0, nrow = M, ncol = 1)
+
+# Perform bootstrap sampling
+for (i in 1:M) {
+  bootstrap_indices <- sample(1:80, n, replace = FALSE)  # Sample without replacement
+  bootstrap_estimates <- attr3(bootstrap_indices)
+  bootstrap_estimates_pts_per_game[i, ] <- bootstrap_estimates[1]
+  bootstrap_estimates_ptsAst_min[i, ] <- bootstrap_estimates[2]
+  bootstrap_estimates_defplay_min[i, ] <- bootstrap_estimates[3]
+}
+
+# Set the y-axis limits for each histogram
+ylim_pts_per_game <- c(0, 200)  
+ylim_ptsAst_min <- c(0, 300)  
+ylim_defplay_min <- c(0, 250)  
+
+
+# Set the x-axis limits for each histogram
+xlim_pts_per_game <- c(-4, 4)   
+xlim_ptsAst_min <- c(-0.1, 0.1)   
+xlim_defplay_min <- c(-0.03, 0.03)  
+
+
+# Construct histograms of the bootstrap sampling errors for each attribute
+par(mfrow = c(1, 3))  # Arrange plots in a single row
+hist(bootstrap_estimates_pts_per_game - pop_estimates[1], main = "Bootstrap Sample Error
+     (Pts per Game)", xlab = "Sample Error", xlim = xlim_pts_per_game, ylim = ylim_pts_per_game)
+hist(bootstrap_estimates_ptsAst_min- pop_estimates[2], main = "Bootstrap Sample Error
+     (PtsAst_min)", xlab = " Sample Error", xlim = xlim_ptsAst_min, ylim = ylim_ptsAst_min)
+hist(bootstrap_estimates_defplay_min- pop_estimates[3], main = "Bootstrap Sample Error
+     (Defplay_min)", xlab = "Sample Error", xlim = xlim_defplay_min, ylim = ylim_defplay_min)
+
+```
+
+$\;$
+
+$\;$
+
+
+**A Sample and the Bootstrap. Suppose that a sample $\mathcal{S}$ with games 1 to 40 where was obtained by sampling without replacement**
+
+**We will calculate the three attributes of interest using the given sample.**
+```{r}
+# Sample S with games 1 to 40 (sampling without replacement)
+sample_S <- 1:40
+
+# Calculate the three attributes of interest for the given sample 𝒮
+attr_S <- attr3(sample_S)
+pts_per_game_sample <- attr_S[1]
+ptsAst_min_sample <- attr_S[2]
+defplay_min_sample <- attr_S[3]
+
+cat("points per game estimate:", pts_per_game_sample)
+cat("points and assists per min: ", ptsAst_min_sample)
+cat("defensive plays per minutes: ", defplay_min_sample)
+
+```
+
+
+$\;$
+
+$\;$
+**Bootstrap; By resampling the sample $\mathcal{S}$ with replacement, we will construct $B=1000$ bootstrap samples $S_1^\star,S_2^\star,\ldots,S_{1000}^\star$ and then calculate the three attributes of interest on each bootstrap sample. Then construct three histograms (in a single row) of the bootstrap sample error for each attribute.**
+
+```{r}
+# Set the seed for reproducibility
+set.seed(341)
+
+# Number of bootstrap samples (B)
+B <- 1000
+
+# Initialize empty matrices to store bootstrap sample estimates
+bootstrap_estimates_pts_per_game <- matrix(0, nrow = B, ncol = 1)
+bootstrap_estimates_ptsAst_min <- matrix(0, nrow = B, ncol = 1)
+bootstrap_estimates_defplay_min <- matrix(0, nrow = B, ncol = 1)
+
+# Bootstrap process - Resample sample S with replacement and calculate attributes
+for (i in 1:B) {
+  bootstrap_sample <- sample(sample_S, n,  replace = TRUE)
+  bootstrap_estimates <- attr3(bootstrap_sample)
+  bootstrap_estimates_pts_per_game[i, ] <- bootstrap_estimates[1]
+  bootstrap_estimates_ptsAst_min[i, ] <- bootstrap_estimates[2]
+  bootstrap_estimates_defplay_min[i, ] <- bootstrap_estimates[3]
+}
+
+
+# Set the y-axis limits for each histogram
+ylim_pts_per_game <- c(0, 300)  
+ylim_ptsAst_min <- c(0, 200)   
+ylim_defplay_min <- c(0, 200)
+
+# Set the x-axis limits for each histogram
+xlim_pts_per_game <- c(-5, 5)   
+xlim_ptsAst_min <- c(-0.12, 0.15)   
+xlim_defplay_min <- c(-0.04, 0.045)  
+
+max(bootstrap_estimates_ptsAst_min-  attr_S[2])
+min(bootstrap_estimates_ptsAst_min-  attr_S[2])
+
+max(bootstrap_estimates_pts_per_game -  attr_S[1])
+min(bootstrap_estimates_pts_per_game -  attr_S[1])
+
+min(bootstrap_estimates_defplay_min-  attr_S[3])
+max(bootstrap_estimates_defplay_min-  attr_S[3])
+
+
+# Construct histograms of the bootstrap sampling errors for each attribute
+par(mfrow = c(1, 3))  # Arrange plots in a single row
+hist(bootstrap_estimates_pts_per_game -  attr_S[1], main = "Bootstrap Sample Error
+     (Pts per Game)", xlab = "Sample Error", xlim = xlim_pts_per_game, ylim = ylim_pts_per_game)
+hist(bootstrap_estimates_ptsAst_min-  attr_S[2], main = "Bootstrap Sample Error
+     (PtsAst_min)", xlab = " Sample Error", xlim = xlim_ptsAst_min, ylim = ylim_ptsAst_min)
+hist(bootstrap_estimates_defplay_min-  attr_S[3], main = "Bootstrap Sample Error
+     (Defplay_min)", xlab = "Sample Error", xlim = xlim_defplay_min, ylim = ylim_defplay_min)
+
+```
+$\;$
+
+$\;$
+
+**Calculate standard errors for each sample estimate and then construct a 95% confidence for the population quantity using the percentile method.**
+```{r}
+sdn <- function( y.pop ) {
+N = length(y.pop)
+sqrt( var(y.pop)*(N-1)/(N) ) }
+
+# Calculate standard errors for each sample estimate 
+#se = std dev with n instead of n -1 
+se_pts_per_game <- sdn(bootstrap_estimates_pts_per_game)
+se_ptsAst_min <- sdn(bootstrap_estimates_ptsAst_min)
+se_defplay_min <- sdn(bootstrap_estimates_defplay_min)
+
+
+cat("Standard errors:\n")
+cat("Standard error for Points per game (pts):", se_pts_per_game, "\n")
+cat("Standard error for Points and assists per min (ptsAst_min):", se_ptsAst_min, "\n")
+cat("Standard error for Defensive plays per minutes (defplay_min):", se_defplay_min, "\n")
+
+
+# Calculate the 95% confidence intervals using the percentile method
+confidence_interval_pts_per_game <- quantile(bootstrap_estimates_pts_per_game, c(0.025, 0.975))
+confidence_interval_ptsAst_min <- quantile(bootstrap_estimates_ptsAst_min, c(0.025, 0.975))
+confidence_interval_defplay_min <- quantile(bootstrap_estimates_defplay_min, c(0.025, 0.975))
+
+cat("95% Confidence Intervals:\n")
+cat("CI for Points per game (pts): [", confidence_interval_pts_per_game[1], ",", confidence_interval_pts_per_game[2], "]\n")
+cat("CI for Points and assists per min (ptsAst_min): [", confidence_interval_ptsAst_min[1], ",", confidence_interval_ptsAst_min[2], "]\n")
+cat("CI for Defensive plays per minutes (defplay_min): [", confidence_interval_defplay_min[1], ",", confidence_interval_defplay_min[2], "]\n")
+
+```
+
+$\;$
+
+$\;$
+
+**Sampling Properties of the Bootstrap when $n=40$; For each of three attributes of interest we will estimate the coverage probability when using the percentile method and give a standard error. For the simulation,  using 40 samples and 20 bootstrap samples. In addition, a conclusion about the procedure is provided.**
+
+
+```{r}
+set.seed(341)
+
+# Sample size
+n <- 40
+
+# Number of repeated samples and bootstrap samples
+M <- 600
+B <- 20
+
+sample_S <- 1:40
+
+#Initialize empty matrices to store bootstrap sample estimates
+bootstrap_estimates_pts_per_game <- matrix(0, nrow = B, ncol = 1)
+bootstrap_estimates_ptsAst_min <- matrix(0, nrow = B, ncol = 1)
+bootstrap_estimates_defplay_min <- matrix(0, nrow = B, ncol = 1)
+
+
+CI <- function(B,indices) {
+  N <- length(indices)
+  n <- N
+  
+  bootstrapPop <- games[indices,]
+  attr3B <- create.attr3(bootstrapPop)
+  
+  # Bootstrap process
+  for (i in 1:B) {
+    sample <- sample(N,n,replace=TRUE)
+     b_est <- attr3B(sample)
+     bootstrap_estimates_pts_per_game[i, ] <-  b_est[1]
+     bootstrap_estimates_ptsAst_min[i, ] <-  b_est[2]
+     bootstrap_estimates_defplay_min[i, ] <-  b_est[3]
+  }
+  
+  errorPtsPerGame <- sdn(bootstrap_estimates_pts_per_game)
+  errorPtsAstMin <- sdn(bootstrap_estimates_ptsAst_min)
+  errorDefplayMin <- sdn( bootstrap_estimates_defplay_min)
+  
+  # Calculate the 95% confidence intervals using the percentile method for each attribute
+  Serror <- c(errorPtsPerGame, 
+              errorPtsAstMin, 
+              errorDefplayMin)
+  
+  # Calculate the 95% confidence intervals using the percentile method for each attribute
+  confidence_interval_pts_per_game <- quantile(bootstrap_estimates_pts_per_game, c(0.025, 0.975))
+  confidence_interval_ptsAst_min <- quantile(bootstrap_estimates_ptsAst_min, c(0.025, 0.975))
+  confidence_interval_defplay_min <- quantile(bootstrap_estimates_defplay_min, c(0.025, 0.975))
+  
+  return(
+    c(confidence_interval_pts_per_game, confidence_interval_ptsAst_min, confidence_interval_defplay_min, Serror)
+  )
+}
+
+attr3f <- create.attr3(games)
+
+
+attr3 <- matrix(0, nrow = M, ncol = 3)
+ptsGameCI <- matrix(0, nrow = M, ncol = 2)
+ptsAstCI <- matrix(0, nrow = M, ncol = 2)
+defplayCI <- matrix(0, nrow = M, ncol = 2)
+sError <- matrix(0, nrow = M, ncol = 3)
+
+
+for (i in 1:M) {
+  s <- sample(1:80, n, replace=FALSE)
+  
+  attr3[i,] <- attr3f(s)
+  
+  CIe <- CI(B,s)
+  
+  ptsGameCI[i,] <- c(CIe[1], CIe[2])
+  ptsAstCI[i,] <- c(CIe[3], CIe[4])
+  defplayCI[i,] <- c(CIe[5], CIe[6])
+  sError[i,] <- c(CIe[7], CIe[8], CIe[9])
+}
+
+# Calculate coverage probabilities for each attribute
+coverage_probability_pts_per_game <- mean(ptsGameCI[,1] <= mean(attr3[,1])  & 
+                                            ptsGameCI[,2] >= mean(attr3[,2]))
+
+coverage_probability_ptsAst_min <- mean(ptsAstCI[,1] <= mean(attr3[,2])  & 
+                                             ptsAstCI[,2] >= mean(attr3[,2]))
+
+coverage_probability_defplay_min <- mean(defplayCI[,1] <= mean(attr3[,3])  & 
+                                             defplayCI[,2] >= mean(attr3[,3]))
+
+
+
+# Output the results
+
+cat("Coverage Probabilities:")
+cat("Points per game (pts) coverage probability: ", coverage_probability_pts_per_game, " and std. Error: ", mean(sError[,1]), "\n")
+
+cat("Points and assists per min (ptsAst_min) coverage probability: ", coverage_probability_ptsAst_min, " and std. Error: ", mean(sError[,2]), "\n")
+
+cat("Defensive plays per minute (defplay_min) coverage probability: ", coverage_probability_defplay_min, " and std. Error: ",  mean(sError[,3]), "\n")
+
+```
+
+**Conclusion: With the number of samples and number of bootstrap samples at 600 and 20 respectively, with each sample being of size 40 and chosen with replacement: the Points per game (pts) coverage probability at 0.9733333 was the highest amongst the 3 attributes of interest, and slightly higher than the 0.95 expected whilst the Points and assists per min (ptsAst_min) coverage probability and defensive plays per minute (defplay_min) coverage probability were very close to the expected 0.95, at 0.9416667 and 0.95 respectively; with the ptsAst_min coverage probability, being the smalllest amongst the 3. The standard errors for ptsAst_min and defplay_min, were very small at 0.03880731, and 0.01167835 respectively with defplay_min having the smallest error amongst the 3; and the error for pts was the highest amongst the 3, at 1.391876.**
+
+
+
+
+*a(i) [2 Marks] Calculate the total number of `pts`, the median number of `pts` per game and the proportion of games with a positive plus-minus.**
+```{r}
+# Total number of points
+total_points <- sum(games$pts)
+cat("Total points:", total_points, "\n")
+
+# Median number of points per game
+median_points <- median(games$pts)
+cat("Median points per game:", median_points, "\n")
+
+# Proportion of games with a positive plus-minus
+positive_plus_minus_prop <- sum(games$pos_plus_minus) / nrow(games)
+cat("Proportion of games with a positive plus-minus:", positive_plus_minus_prop, "\n")
+
+
+
+```
+
+$\;$
+
+$\;$
+
+**a(ii) [2 Marks] Calculate the proportion of games with `pts` with less than or equal to $20$ and the proportion of games with `pts` within the interval $[15, 20)$.**
+```{r}
+# Proportion of games with pts <= 20
+pts_less_20_prop <- sum(games$pts <= 20) / nrow(games)
+cat("Proportion of games with pts <= 20:", pts_less_20_prop, "\n")
+
+# Proportion of games with pts in [15, 20)
+pts_15_20_prop <- sum(games$pts >= 15 & games$pts < 20) / nrow(games)
+cat("Proportion of games with pts in [15, 20):", pts_15_20_prop, "\n")
+```
+
+$\;$
+
+$\;$
+
+**a(iii) [2 Marks] In a $1 \times 2$ figure, plot the histogram using equal bin widths with bin width equal to 5 over the range 0 to 50 and plot the cumulative proportion of `pts` $\le x$ over the range  0 to 50. For the cumulative proportion plot add a horizontal line at 1/2.**
+
+```{r}
+# Set up the plotting area
+par(mfrow=c(1,2))
+
+# Histogram with equal bin widths
+hist(games$pts, breaks = seq(0, 50, by = 5),
+     main = "Histogram with equal 
+     bin widths",
+     xlab = "Points (pts)", ylab = "Frequency")
+
+# Calculate cumulative proportion of pts <= x
+x_values <- seq(0, 50)
+cumulative_prop <- numeric(length(x_values))
+
+for (i in seq_along(x_values)) {
+  cumulative_prop[i] <- sum(games$pts <= x_values[i]) / length(games$pts)
+}
+
+
+# Plot cumulative proportion
+plot(x_values, cumulative_prop, type = "l",
+     main = "Cumulative Proportion of
+     pts <= x (CDF)",
+     xlab = "Points (pts)", ylab = "Cumulative Proportion")
+
+# Add horizontal line at 1/2
+abline(h = 1/2, col = "red")
+
+```
+
+$\;$
+
+$\;$
+
+\newpage
+**Horvitz Thompson**
+
+**Make a new variable; `pos_plus_minus` which is an indicator variable that for when Stephen Curry's `plus_minus` is positive.**
+```{r}
+##Create new variable; `pos_plus_minus` which is 1 when Stephen Curry's `plus_minus` is positive, and 0 otherwise.
+games$pos_plus_minus <- as.numeric(games$plus_minus > 0)
+
+# Print the updated data
+print(games)
+```
+$\;$
+
+$\;$
+
+**Calculate the total number of `pts`, the median number of `pts` per game and the proportion of games with a positive plus-minus.**
+```{r}
+# Total number of points
+total_points <- sum(games$pts)
+cat("Total points:", total_points, "\n")
+
+# Median number of points per game
+median_points <- median(games$pts)
+cat("Median points per game:", median_points, "\n")
+
+# Proportion of games with a positive plus-minus
+positive_plus_minus_prop <- sum(games$pos_plus_minus) / nrow(games)
+cat("Proportion of games with a positive plus-minus:", positive_plus_minus_prop, "\n")
+
+
+
+```
+
+$\;$
+
+$\;$
+
+**Calculate the proportion of games with `pts` with less than or equal to $20$ and the proportion of games with `pts` within the interval $[15, 20)$.**
+```{r}
+# Proportion of games with pts <= 20
+pts_less_20_prop <- sum(games$pts <= 20) / nrow(games)
+cat("Proportion of games with pts <= 20:", pts_less_20_prop, "\n")
+
+# Proportion of games with pts in [15, 20)
+pts_15_20_prop <- sum(games$pts >= 15 & games$pts < 20) / nrow(games)
+cat("Proportion of games with pts in [15, 20):", pts_15_20_prop, "\n")
+```
+
+$\;$
+
+$\;$
+
+**In a $1 \times 2$ figure, plot the histogram using equal bin widths with bin width equal to 5 over the range 0 to 50 and plot the cumulative proportion of `pts` $\le x$ over the range  0 to 50. For the cumulative proportion plot add a horizontal line at 1/2.**
+
+```{r}
+# Set up the plotting area
+par(mfrow=c(1,2))
+
+# Histogram with equal bin widths
+hist(games$pts, breaks = seq(0, 50, by = 5),
+     main = "Histogram with equal 
+     bin widths",
+     xlab = "Points (pts)", ylab = "Frequency")
+
+# Calculate cumulative proportion of pts <= x
+x_values <- seq(0, 50)
+cumulative_prop <- numeric(length(x_values))
+
+for (i in seq_along(x_values)) {
+  cumulative_prop[i] <- sum(games$pts <= x_values[i]) / length(games$pts)
+}
+
+
+# Plot cumulative proportion
+plot(x_values, cumulative_prop, type = "l",
+     main = "Cumulative Proportion of
+     pts <= x (CDF)",
+     xlab = "Points (pts)", ylab = "Cumulative Proportion")
+
+# Add horizontal line at 1/2
+abline(h = 1/2, col = "red")
+
+```
+
+$\;$
+
+$\;$
+
+**plot of the cumulative proportion `pts` provide an estimate the median.**
+```{r}
+# Calculate cumulative proportion of pts <= x
+x_values <- seq(0, 50)
+cumulative_prop <- numeric(length(x_values))
+
+for (i in seq_along(x_values)) {
+  cumulative_prop[i] <- sum(games$pts <= x_values[i]) / length(games$pts)
+}
+
+
+# Plot cumulative proportion
+plot(x_values, cumulative_prop, type = "l",
+     main = "Cumulative Proportion of
+     pts <= x",
+     xlab = "Points (pts)", ylab = "Cumulative Proportion")
+
+# Add horizontal line at 1/2
+abline(h = 1/2, col = "red")
+
+# Find estimated median value
+estimated_median <- x_values[which.min(abs(cumulative_prop - 1/2))]
+abline(v = estimated_median, col = "blue", lty = 2)
+
+# Print estimated median value
+cat("Estimated Median:", estimated_median, "\n")
+```
+$\;$
+
+$\;$
+
+**Suppose that games 1 to 40 was a sample was obtained by sampling without replacement. **
+```{r,echo=TRUE} 
+gamesSample <- 1:40
+```
+**Use the sample `gamesSample`: **
+$\;$
+
+```{r, echo=FALSE} 
+popSize <- function(pop) {nrow(as.data.frame(pop))}
+sampSize <- function(samp) {popSize(samp)}
+
+createInclusionProbFn <- function(pop, sampSize) {
+  N <- popSize(pop)
+  n <- sampSize
+  function(u) { n/N }
+}
+
+createJointInclusionProbFn <- function(pop, sampSize) {
+  N <- popSize(pop)
+  n <- sampSize
+  function(u,v) { 
+    ## Note that the answer depends on whether u and v
+    ## are the same or different
+    if (u == v) {n/N} else {(n * (n-1)) / (N * (N-1))}
+  }
+}
+
+createHTestimator <- function(pi_u_fn) {
+  function(samp, variateFn) {
+    Reduce(`+`, 
+           Map(function(u) {variateFn(u)/ pi_u_fn(u)}, samp),
+           init = 0
+    )
+  }
+}
+
+createHTVarianceEstimator <- function(pop, pi_u_fn, pi_uv_fn) {
+  function(samp, variateFn) {
+    Reduce(`+`,
+           Map(function(u) {
+             pi_u <- pi_u_fn(u)
+             y_u <- variateFn(u)
+             Reduce(`+`, 
+                    Map(function(v) {
+                      pi_v <- pi_u_fn(v)
+                      pi_uv <- pi_uv_fn(u, v)
+                      y_v <- variateFn(v)
+                      Delta_uv <- pi_uv - pi_u * pi_v
+                      
+                      result <- (Delta_uv  * y_u * y_v) 
+                      result <- result/(pi_uv * pi_u * pi_v)
+                      result
+                    }, 
+                    samp),
+                    init = 0) 
+           },
+           samp
+           ),
+           init = 0)
+    
+  }
+}
+```
+
+$\;$
+**b) Calculate the Horvitz-Thompson estimate and the standard error for total number of the `pts`, mean number of `pts`  and the proportion of games with a positive plus_minus.**
+
+```{r}
+pop <- games
+samp <- games[gamesSample, ]
+
+n <- nrow(samp)  # Sample size
+N <- nrow(pop)  # Population size
+
+# Create inclusion probability and joint inclusion probability functions
+inclusionProb <- createInclusionProbFn(pop, sampSize = n)
+inclusionJointProb <- createJointInclusionProbFn(pop, sampSize = n)
+
+createGenericVariateFn <- function(popData, expression, ...) {
+  # Save extra arguments to extra_args
+  extra_args <- list(...)
+  # A formality; instead of evaluating, return the unevaluated expression.
+  evalable <- substitute(expression)
+  # Evaluate expression in the context of popData, restricted to indices u, and any extra_args.
+  f <- function(u) with(extra_args, eval(evalable, popData[u,]))
+  return(f)
+}
+
+# Variate function for total number of points
+ptsVariateFn <- createGenericVariateFn(pop, sum(pts))
+
+# Variate function for mean number of points
+meanPtsVariateFn <- createGenericVariateFn(pop, sum(pts) /N)
+
+# Variate function for the proportion of games with positive plus_minus
+propPositivePlusMinusVariateFn <- createGenericVariateFn(pop, sum(plus_minus > 0) / N)
+
+#Estimators
+HTPtsEstimator <- createHTestimator(inclusionProb)
+HTMeanPtsEstimator <- createHTestimator(inclusionProb)
+HTPropPositivePlusMinusEstimator <- createHTestimator(inclusionProb)
+
+#variance Estimators
+HTPtsVarianceEstimator <- createHTVarianceEstimator(pi_u_fn = inclusionProb, pi_uv_fn = inclusionJointProb)
+HTMeanPtsVarianceEstimator <- createHTVarianceEstimator(pi_u_fn = inclusionProb, pi_uv_fn = inclusionJointProb)
+HTPropPositivePlusMinusVarianceEstimator <- createHTVarianceEstimator(pi_u_fn = inclusionProb, pi_uv_fn = inclusionJointProb)
+
+
+# HT estimate and standard error for total number of points
+HTPtsEstimate <- HTPtsEstimator(1:n, ptsVariateFn)
+HTPtsStdError <- sqrt(HTPtsVarianceEstimator(1:n, ptsVariateFn))
+
+# HT estimate and standard error for mean number of points
+HTMeanPtsEstimate <- HTMeanPtsEstimator(1:n, meanPtsVariateFn)
+HTMeanPtsStdError <- sqrt(HTMeanPtsVarianceEstimator(1:n, meanPtsVariateFn))
+
+# HT estimate and standard error for the proportion of games with positive plus_minus
+HTPropPositivePlusMinusEstimate <- HTPropPositivePlusMinusEstimator(1:n, propPositivePlusMinusVariateFn)
+HTPropPositivePlusMinusStdError <- sqrt(HTPropPositivePlusMinusVarianceEstimator(1:n, propPositivePlusMinusVariateFn))
+
+# Print the estimates and standard errors
+cat("HT Estimate for Total Number of Points:", HTPtsEstimate, "\n")
+cat("HT Standard Error for Total Number of Points:", HTPtsStdError, "\n\n")
+
+cat("HT Estimate for Mean Number of Points:", HTMeanPtsEstimate, "\n")
+cat("HT Standard Error for Mean Number of Points:", HTMeanPtsStdError, "\n\n")
+
+cat("HT Estimate for Proportion of Games with Positive plus_minus:", HTPropPositivePlusMinusEstimate, "\n")
+cat("HT Standard Error for Proportion of Games with Positive plus_minus:", HTPropPositivePlusMinusStdError, "\n")
+
+```
+
+$\;$
+
+$\;$
+**Calculate the Horvitz-Thompson estimate and the standard error for the proportion of levels with `pts` with less than or equal to $20$ and interval $[15, 20)$. **
+```{r}
+#Create a variate function that calculates the indicator variable for levels with pts within the interval [15, 20). 
+ptsIntervalVariateFn <- createGenericVariateFn(pop, (pts < 20 & pts >= 15) / N)
+
+#Create a variate function that calculates the indicator variable for levels with pts less than or equal to 20
+pts20VariateFn <- createGenericVariateFn(pop, (pts <= 20) / N)
+
+#Create the Horvitz-Thompson estimator and variance estimator for the proportion using the defined inclusion probability function.
+HTPropEstimator <- createHTestimator(inclusionProb)
+HTPropVarianceEstimator <- createHTVarianceEstimator(pi_u_fn = inclusionProb, pi_uv_fn = inclusionJointProb)
+
+#Calculate the Horvitz-Thompson estimate and standard error for the proportion.: Interval
+HTPropEstimate <- HTPropEstimator(1:n, ptsIntervalVariateFn)
+HTPropStdError <- sqrt(HTPropVarianceEstimator(1:n, ptsIntervalVariateFn))
+
+#Calculate the Horvitz-Thompson estimate and standard error for the proportion: <=20
+HTPropEstimate20 <- HTPropEstimator(1:n, pts20VariateFn)
+HTPropStdError20 <- sqrt(HTPropVarianceEstimator(1:n, pts20VariateFn))
+
+
+
+
+cat("HT Estimate for Proportion of Levels with pts in [15, 20):", HTPropEstimate, "\n")
+cat("HT Standard Error for Proportion of Levels with pts in [15, 20):", HTPropStdError, "\n")
+
+cat("\n")
+
+cat("HT Estimate for Proportion of Levels with pts <= 20:", HTPropEstimate20, "\n")
+cat("HT Standard Error for Proportion of Levels with pts <= 20:", HTPropStdError20, "\n")
+
+```
+
+$\;$
+
+$\;$
+**In a $1 \times 2$ figure, plot the Horvitz-Thompson estimate and overlay the lines of $\pm 2$ times the standard error for 1) the histogram using equal bin widths with bin width equal to 5 over the range 0 to 50 and 2) the cumulative proportion of `pts` $\le x$ over the range 0 to 50. For the cumulative proportion plot add a horizontal line at 1/2.**
+
+```{r}
+# Create a 1x2 figure
+par(mfrow = c(1, 2))
+
+
+pi_uv_fn <- function(u, v) {
+  ifelse(u == v, pi_u_fn(u), pi_u_fn(u) * pi_u_fn(v))
+}
+
+
+# Plot 1: Histogram
+
+# prop estimation plot
+# Define necessary functions and estimators
+createHTestimator <- function(pi_u_fn) {
+  function(sample_idx, variateFn) {
+    Reduce(`+`, Map(function(u) {variateFn(u)/ pi_u_fn(u)}, sample_idx), init = 0)
+  }
+}
+
+createHTVarianceEstimator <- function(pi_u_fn, pi_uv_fn) {
+  function(sample_idx, variateFn) {
+    sum(sapply(sample_idx, function(u) {
+      sum(sapply(sample_idx, function(v) {
+        pi_u <- pi_u_fn(u)
+        pi_v <- pi_u_fn(v)
+        y_u <- variateFn(u)
+        y_v <- variateFn(v)
+        pi_uv <- pi_uv_fn(u, v)
+        Delta_uv <- pi_uv - pi_u * pi_v
+        return((Delta_uv * y_u * y_v) / (pi_uv * pi_u * pi_v))
+      }))
+    }))
+  }
+}
+
+createGenericVariateFn <- function(popData, expression, ...) {
+  extra_args <- list(...)
+  evalable <- substitute(expression)
+  f <- function(u) with(extra_args, eval(evalable, popData[u, ]))
+  return(f)
+}
+
+# Set range and bin width for the histogram
+range_min <- 0
+range_max <- 50
+bin_width <- 5
+
+# Generate bin boundaries for the histogram
+bins <- seq(range_min, range_max, by = bin_width)
+pts <- games$pts
+# Create variate function for the histogram
+histVariateFn <- createGenericVariateFn(pop, sum(pts >= bins[-length(bins)] & pts < bins[-1]))
+
+# Estimate the proportion using the Horvitz-Thompson estimator
+prop_estimate <- createHTestimator(inclusionProb)(1:n, histVariateFn)
+
+# Estimate the standard error of the proportion using the Horvitz-Thompson variance estimator
+prop_std_err <- sqrt(createHTVarianceEstimator(inclusionProb, inclusionJointProb)(1:n, histVariateFn))
+
+cat("Histogram HT Estimate:", prop_estimate, "\n")
+cat("Histogram HT Error Estimate:", prop_std_err, "\n")
+
+# Plot the histogram with the Horvitz-Thompson estimate and error bars
+hist(pts, breaks = bins, main = "Histogram with 
+     Horvitz-Thompson Estimate",
+     xlab = "Points", ylab = "Frequency", col = "lightblue", border = "white", xlim = c(range_min, 82))
+abline(v = prop_estimate, col = "blue", lwd = 2)
+abline(v = prop_estimate + 2 * prop_std_err, col = "red", lty = "dashed", lwd = 2)
+abline(v = prop_estimate - 2 * prop_std_err, col = "red", lty = "dashed", lwd = 2)
+
+
+# Plot 2: Cumulative Proportion
+
+yseq <- c(0, sort(samp$pts[1:40]) ,50)
+          
+CDF_estimate <- sapply(yseq, function(y) {
+curpts <- createGenericVariateFn(pop, (pts <= maxlen) / N, maxlen = y)
+HTPtsEstimator(1:n, curpts)
+})
+
+CDF_variance_estimate <- sapply(yseq, function(y) {
+curpts <- createGenericVariateFn(pop, (pts <= maxlen) / N, maxlen = y)
+HTPtsVarianceEstimator(1:n, curpts)
+})
+CDF_stdev_estimate <- sqrt(pmax(CDF_variance_estimate, 0))
+
+plot(yseq, CDF_estimate,
+type = 's',
+ylab = "Proportion",
+xlab = "Pts",
+main = "CDF Estimate"
+)
+
+# Add horizontal line at 1/2
+abline(h = 0.5, col = "green", lty = 2)
+
+# Add HT estimate and error bars
+lines(yseq, CDF_estimate + 2 * CDF_stdev_estimate, type='s',  col = "blue", lty = 2)
+lines(yseq, CDF_estimate - 2 * CDF_stdev_estimate, type='s', col = "blue", lty = 2)
+
+
+# Reset the plot layout
+par(mfrow = c(1, 1))
+```
+
+
+```{r}
+# Plot the histogram with the Horvitz-Thompson estimate and error bars
+hist(pts, breaks = bins, main = "Histogram with 
+     Horvitz-Thompson Estimate
+     and no error",
+     xlab = "Points", ylab = "Frequency", col = "lightblue", border = "white")
+abline(v = prop_estimate, col = "blue", lwd = 2)
+abline(v = prop_estimate + 2 * prop_std_err, col = "red", lty = "dashed", lwd = 2)
+abline(v = prop_estimate - 2 * prop_std_err, col = "red", lty = "dashed", lwd = 2)
+```
+
+
+$\;$
+
+$\;$
+**Use the plot of the HT estimate of the cumulative proportion `pts` to provide an HT estimate the median.**
+
+```{r}
+# Plot 2: Cumulative Proportion
+
+# Plot 2: Cumulative Proportion
+
+yseq <- c(0, sort(samp$pts[1:40]) ,50)
+          
+CDF_estimate <- sapply(yseq, function(y) {
+curpts <- createGenericVariateFn(pop, (pts <= maxlen) / N, maxlen = y)
+HTPtsEstimator(1:n, curpts)
+})
+
+CDF_variance_estimate <- sapply(yseq, function(y) {
+curpts <- createGenericVariateFn(pop, (pts <= maxlen) / N, maxlen = y)
+HTPtsVarianceEstimator(1:n, curpts)
+})
+CDF_stdev_estimate <- sqrt(pmax(CDF_variance_estimate, 0))
+
+plot(yseq, CDF_estimate,
+type = 's',
+ylab = "Proportion",
+xlab = "Pts",
+main = "CDF (Quantile Function) Estimate"
+)
+
+# Add horizontal line at 1/2
+abline(h = 0.5, col = "green", lty = 2)
+
+# Add HT estimate and error bars
+lines(yseq, CDF_estimate + 2 * CDF_stdev_estimate, type='s',  col = "blue", lty = 2)
+lines(yseq, CDF_estimate - 2 * CDF_stdev_estimate, type='s', col = "blue", lty = 2)
+
+
+
+# Find estimated median value
+estimated_median <- x_values[which.min(abs(cumulative_prop - 1/2))]
+abline(v = estimated_median, col = "green", lty = 2)
+
+# Print estimated median value
+cat("Estimated Median:", estimated_median, "\n")
+
+#Also check:
+CDF <- approxfun(yseq, CDF_estimate, method = "constant", ties = "mean", f = 1)
+inverseCDF <- approxfun(CDF_estimate, yseq, method = "constant", ties = "mean", f = 1)
+inverseCDF(0.5)
+
+```
+$\;$
+
+$\;$
+
+**(Weighted simple random sampling with replacement (WSRSWR) is where units are selected with replacement but instead of equal probability the units are selected with unequal probability based on some weights $w_u$, $w_u >0$ and $\sum_{u=1}^N w_u =1$. The weights are usually constructed using auxiliary information that one might have on each unit. Here are we will assume we know many minutes (`min`) played in each games and we will try to estimate the total number of points. **
+
+$\;$
+
+$\;$
+
+**Tthe inclusion probabilities for WSRSWR.**
+
+To find the inclusion probability $\pi_u$ for unit $u \in P$ given weight $w_u$.
+A given weight, $w_u$ represent[s] the probability of selecting unit u from the population at each draw (as defined on Piazza).
+
+For each draw, the probability of picking unit u is $\pi_u$.
+Hence, the probability of not picking u is $1-\pi_u$
+
+Thus for a sample of size n, $P(u \notin S) = (1-w_u)^n$
+**Hence, the inclusion probabilities for WSRSWR  $\pi_u = P(u \in S) = 1-P(u \notin S) = 1 - (1-w_u)^n$**
+
+
+$\;$
+
+$\;$
+**joint inclusion probabilities for WSRSWR.**
+
+For units $u,v \in P$ and given weights $w_u, w_v$, assuming picking u and v are independent.
+Thus, the joint inclusion probability $\pi_{uv}$is: 
+$$P(u \in S \space \& \space v \in S)$$ 
+$$= P(u \in S) * P(v \in S) $$
+$$= [1 - (1-\pi_u)^n][1 - (1-\pi_v)^n]$$
+
+$\;$
+
+$\;$
+**Create two functions `createWSRSWRiProb` and  `createWSRSWRjProb` that calculate the marginal and joint inclusions probabilities for WSRSWR. Both functions should have arguments `pop`,  `sampSize` and `sampleWts`.+ Modify `createInclusionProbFn` to construct `createWSRSWRiProb` and + modify `createJointInclusionProbFn` to construct `createWSRSWRjProb`.**
+
+```{r}
+createWSRSWRiProb <- function(pop, sampSize, sampleWts) {
+  N <- popSize(pop)
+  n <- sampSize
+  function(u) {
+    1-((1-sampleWts[u])^n)
+  }
+}
+
+createWSRSWRjProb <- function(pop, sampSize, sampleWts) {
+  N <- popSize(pop)
+  n <- sampSize
+  function(u,v) {
+    if (u==v) { (1-((1-sampleWts[u])^n)) }
+    else { (1-((1-sampleWts[u])^n))(1-((1-sampleWts[v])^n)) }
+  }
+}
+
+```
+
+$\;$
+
+$\;$
+**Now suppose the `gamesSample` was generated using WSRSWR with weights constructed using `min` which is minutes played. Construct the HT estimate and the standard error for the total number of `pts`.**
+
+```{r}
+pop <- games
+samp <- games[gamesSample, ]
+n <- nrow(samp)
+N <- nrow(pop)
+
+# Create inclusion probability and joint inclusion probability functions
+inclusionProb <- createWSRSWRiProb(pop, n, pop$min/sum(pop$min))
+inclusionJointProb <- createWSRSWRjProb(pop, n, pop$min/sum(pop$min))
+
+pi_uv_fn <- function(u, v) {
+  ifelse(u == v, pi_u_fn(u), pi_u_fn(u) * pi_u_fn(v))
+}
+
+createHTVarianceEstimator <- function(pi_u_fn, pi_uv_fn) {
+  f <- function(sample_idx, variateFn) {
+    sum(mapply(function(u, v) {
+      pi_u <- pi_u_fn(u)
+      pi_v <- pi_u_fn(v)
+      y_u <- variateFn(u)
+      y_v <- variateFn(v)
+      pi_uv <- pi_uv_fn(u, v)
+      Delta_uv <- pi_uv - pi_u * pi_v
+      return((Delta_uv * y_u * y_v) / (pi_uv * pi_u * pi_v))
+    }, sample_idx, sample_idx))
+  }
+}
+
+
+HTEstimate <- createHTestimator(inclusionProb)
+HTVarEstimate <- createHTVarianceEstimator(inclusionProb, inclusionJointProb)
+
+# Variate function for  points
+ptsVariateFn <-  createGenericVariateFn(pop, pts)
+
+ptsEstimate <-  HTEstimate(1:n, ptsVariateFn)
+
+ptsVarEstimate <-  sqrt(HTVarEstimate(1:n, ptsVariateFn))
+
+cat("HT Estimate for Total Number of Points:", ptsEstimate, "\n")
+cat("HT Standard Error for Total Number of Points:", ptsVarEstimate, "\n")
+
+```
+
+$\;$
+
+$\;$
+**Determine which sampling plan (SRSWOR vs WSRSWR) is better **
+
+WSRSWR, the HT Estimate for Total Number of Points was 2632.515, and the corresponding HT Standard Error was 342.5004, whilst SRSWOR, the HT Estimate for Total Number of Points was 2084, and the corresponding HT Standard Error was
+86.90578, so it can be concluded that **SRSWOR is better since the standard error is significantly smaller**.A smaller standard error indicates a more precise estimate of the population parameter. The SRSWOR sampling plan achieved a lower standard error, suggesting that it provides more accurate and reliable estimates of the total number of points compared to the WSRSWR sampling plan
+
+
+
+
